@@ -1,0 +1,27 @@
+#!/bin/bash
+
+function healthcheck_info(){
+	echo "  healthcheck : shows the ksqlDB server healthcheck"
+}
+
+function healthcheck_usage(){
+	cat << EOF
+
+DESCRIPTION:
+	Shows the ksqlDB server healthcheck.
+
+USAGE:
+	healthcheck
+
+EOF
+}
+
+function healthcheck(){
+	if ! ksqldb_healthcheck; then
+        >&2 echo "Could not fetch ksqlDB server healthcheck. Is the server at '$KSQLDB_URL' running?"
+		return 1
+	fi
+
+	return 0
+}
+

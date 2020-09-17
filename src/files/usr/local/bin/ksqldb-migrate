@@ -1,0 +1,111 @@
+#!/bin/bash
+#
+# This tool was developed while listening to Sepultura/Quadra
+# https://open.spotify.com/album/0tcLKzf5Rudm66ApoNKpGm?si=KyPGJItFTa--lyrLzXY5rA
+
+umask 022
+
+#### CONSTANTS ################################################################
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+KSQLDB_DIR_LIB=$DIR/../lib/ksqldb-migrate
+KSQLDB_DIR_PLUGINS=$KSQLDB_DIR_LIB/plugins
+
+#### DEFAULTS #################################################################
+
+# loglevel DEBUG|INFO|WARN|ERROR
+KSQLDB_LOGLEVEL=INFO
+
+#### GLOBAL FUNCTIONS #########################################################
+
+. $KSQLDB_DIR_LIB/funcs.log.sh
+. $KSQLDB_DIR_LIB/funcs.ksqldb.sh
+. $KSQLDB_DIR_LIB/funcs.migrate.sh
+. $KSQLDB_DIR_LIB/funcs.yaml.sh
+
+#### FUNCTIONS ################################################################
+
+function check_dependencies() {
+        for CMD in curl find jq perl readlink sha256sum yq; do
+                if ! command -V $CMD &> /dev/null; then
+                        echo "Missing dependency '$CMD'. Please install. Aborting."
+                        exit 1
+                fi
+        done
+}
+
+function list_plugins(){
+        find $KSQLDB_DIR_PLUGINS -maxdepth 1 -type f -executable | sed -r "s#$KSQLDB_DIR_PLUGINS/(.*)#\1#" | sort
+}
+
+function load_plugins(){
+        while read PLUGIN; do
+                source $KSQLDB_DIR_PLUGINS/$PLUGIN
+        done < <( list_plugins )
+}
+
+function usage(){
+        cat << EOF
+
+ksqlDB topic, stream, tables, and more migration tool.
+
+USAGE:
+        $0 [OPTIONS] CMD
+
+OPTIONS:
+  -h|--help:
+        Prints out this message and exits.
+
+  -s|--server-url URL:
+        Sets the ksqlDB REST base url
+        URL: the http base url 
+        DEFAULT: http://localhost:8088
+
+PARAMETERS:
+  CMD
+        The command to execute. The command will take more options.
+        Following commands are available:
+
+EOF
+        while read PLUGIN; do
+                ${PLUGIN}_info
+        done < <( list_plugins )
+        echo
+}
+
+#### PLUGIN INIT ##############################################################
+
+check_dependencies
+load_plugins
+
+#### OPTIONS ##################################################################
+
+# DEFAULTS
+KSQLDB_URL=http://localhost:8088
+
+while [ true ]; do
+        case "$1" in
+                -h|--help)
+                        usage
+                        exit 0
+                        ;;
+                *)
+                        break
+                        ;;
+        esac
+done
+
+#### PARAMETERS ###############################################################
+
+if [ -z "$1" ]; then
+        usage
+        exit 1
+fi
+
+CMD=$1
+shift
+
+#### SCRIPT ###################################################################
+
+$CMD $@
+

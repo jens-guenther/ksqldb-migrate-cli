@@ -1,0 +1,33 @@
+#!/bin/bash
+
+function help_info(){
+	echo "  help : show help for individual commands"
+}
+
+function help_usage(){
+	cat << EOF
+
+DESCRIPTION:
+	Shows the help for a given command. Use it without any parameter to
+	show this help.
+
+USAGE:
+	help [CMD]
+
+PARAMETERS:
+  CMD
+	The command to show the help.
+  
+EOF
+}
+
+function help(){
+	if [ -z "$1" ]; then
+		help_usage
+		return 0
+	fi
+
+	${1}_usage
+	return 0
+}
+

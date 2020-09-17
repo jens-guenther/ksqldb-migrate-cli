@@ -1,0 +1,27 @@
+#!/bin/bash
+
+function info_info(){
+	echo "  info : shows the ksqlDB server info"
+}
+
+function info_usage(){
+	cat << EOF
+
+DESCRIPTION:
+	Shows the ksqlDB server info.
+
+USAGE:
+	info
+
+EOF
+}
+
+function info(){
+	if ! ksqldb_info; then
+        >&2 echo "Could not fetch ksqlDB server info. Is the server at '$KSQLDB_URL' running?"
+		return 1
+	fi
+
+	return 0
+}
+

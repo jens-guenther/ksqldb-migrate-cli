@@ -1,0 +1,73 @@
+#!/bin/bash
+
+function rollback_info(){
+	echo "  rollback : reverts migrations already applied"
+}
+
+function rollback_usage(){
+	cat << EOF
+
+DESCRIPTION:
+	Reverts migrations already applied.
+
+USAGE:
+	rollback KSQL_DIR [NUM]
+
+PARAMETERS:
+  KSQL_DIR
+	Folder containing the migration files.
+
+  NUM
+    optional number of migrations to rollback.
+    Default: 1
+  
+EOF
+}
+
+function rollback(){
+	if [ -z "$1" ]; then
+		rollback_usage
+		return 0
+	fi
+
+    local KSQL_DIR="$1"
+    local ROLLBACK_NUM="$2"
+
+    # validate that all files are valid migration files
+    local KSQL_DIR=$1
+	if ! migrate_verify_ksql_yaml_folder $KSQL_DIR; then
+        return 1
+    fi
+
+    # make sure the server is reachable
+    if ! ksqldb_isAvailable; then
+        >&2 echo "Could not fetch ksqlDB server data. Is the server at '$KSQLDB_URL' running? Aborting."
+		return 1
+	fi
+    
+    # make sure the migration environment is available
+    if ! migrate_ensure_setup; then
+        >&2 echo "Can't determine status of existing migrations. Aborting."
+        return 1
+    fi
+
+    if ! migrate_rollback_ksql_yaml_folder $KSQL_DIR $ROLLBACK_NUM; then
+        return 1
+    fi
+    
+	return 0
+
+    # rollback
+    # - reverse iterate through the directory
+    # - for each file
+    #   - check if it's applied, do nothing if it isn't
+    #   - validate the hash is correct, fail finally if not
+    #   - check if it has a rollback setting, stop finally if not
+    #   - execute the rollback
+    #     - execute the statement
+    #     - add a tombstone event to the MIGRATION_TOPIC to mark the related migration_id as deleted (works only via kafka, not via KSQL)
+    #   - decrease ROLLBACK_NUM
+    #   - check if ROLLBACK_NUM is zero, stop then
+    #   - continue with next file
+}
+

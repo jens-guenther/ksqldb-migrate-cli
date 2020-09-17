@@ -1,0 +1,63 @@
+#!/bin/bash
+
+function update_info(){
+	echo "  update : runs all migrations"
+}
+
+function update_usage(){
+	cat << EOF
+
+DESCRIPTION:
+	Runs all migrations found in the '<KSQL_DIR>' folder. 
+
+    The migration files found in the folder will be alphabetically sorted
+    and executed in order. 
+
+    The migration files must be YAML files with the following structure:
+
+        ksql: <KSQL STATEMENT>
+        properties:
+            <PROPERTY 1 NAME> : <PROPERTY 1 VALUE>
+            ...
+
+USAGE:
+	update KSQL_DIR
+
+PARAMETERS:
+  KSQL_DIR
+	Folder containing the migration files.
+  
+EOF
+}
+
+function update(){
+	if [ -z "$1" ]; then
+		update_usage
+		return 0
+	fi
+
+    # validate that all files are valid migration files
+    local KSQL_DIR=$1
+	if ! migrate_verify_ksql_yaml_folder $KSQL_DIR; then
+        return 1
+    fi
+
+    # make sure the server is reachable
+    if ! ksqldb_isAvailable; then
+        >&2 echo "Could not fetch ksqlDB server data. Is the server at '$KSQLDB_URL' running? Aborting."
+		return 1
+	fi
+    
+    # make sure the migration environment is available
+    if ! migrate_ensure_setup; then
+        >&2 echo "Can't determine status of existing migrations. Aborting."
+        return 1
+    fi
+
+    if ! migrate_apply_ksql_yaml_folder $KSQL_DIR; then
+        return 1
+    fi
+    
+	return 0
+}
+
