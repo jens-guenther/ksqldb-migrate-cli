@@ -18,7 +18,7 @@ KSQLDB_DIR_LIB=$DIR/../files/usr/local/lib/ksqldb-migrate
 
 function test_migrate_setup__when_ksqldb_execute_fails_so_does_this(){
 
-    mock_reset
+    ksqldb_mock_reset
 
     MOCK_RETURN_CODE=1
 
@@ -29,7 +29,7 @@ function test_migrate_setup__when_ksqldb_execute_fails_so_does_this(){
 
 function test_migrate_setup__when_response_is_success_method_succeeds(){
 
-    mock_reset
+    ksqldb_mock_reset
 
     MOCK_RETURN_STDOUT='[{"commandStatus":{"status":"SUCCESS","message":"MESSAGE"}}]'
 
@@ -45,7 +45,7 @@ function test_migrate_setup__when_response_is_success_method_succeeds(){
 
 function test_migrate_setup__when_response_is_error_method_fails_with_error_message(){
 
-    mock_reset
+    ksqldb_mock_reset
 
     MOCK_RETURN_STDOUT='[{"commandStatus":{"status":"ERROR","message":"ERRORMESSAGE"}}]'
 
@@ -116,6 +116,99 @@ EOM
 
 }
 
+#### test_migrate_iterate_and_execute
+
+TEST_MIAE_FOLDER=/tmp/$$
+
+function test_miae_setup_ksql_test_files() {
+    mkdir -p "${TEST_MIAE_FOLDER}"
+    trap "rm -rf ${TEST_MIAE_FOLDER}" EXIT
+
+    touch "${TEST_MIAE_FOLDER}/0001.ksql"
+    touch "${TEST_MIAE_FOLDER}/0002.ksql"
+    touch "${TEST_MIAE_FOLDER}/0003.ksql"
+}
+
+TEST_MIAE_CALLED_FILES=
+
+function test_miae_mock_reset() {
+    TEST_MIAE_CALLED_FILES=
+}
+
+function test_miae_mock_function() {
+    if [ -z "${TEST_MIAE_CALLED_FILES}" ]; then
+        TEST_MIAE_CALLED_FILES="$1"
+    else
+        TEST_MIAE_CALLED_FILES="${TEST_MIAE_CALLED_FILES}+$1"
+    fi
+}
+
+function test_miae_assert_num_files_executed() {
+    local LC=$( echo "${TEST_MIAE_CALLED_FILES}" | perl -pe "s/\+/\n/g" | egrep "^.+$" | wc -l )
+
+    if [ ! "$1" == "$LC" ]; then echo "number of files to be executed was expected to be '$1', but was '$LC'"; return 1; fi
+}
+
+function test_miae_assert_file_executed() {
+    if ! echo "${TEST_MIAE_CALLED_FILES}" | grep -q "$1"; then echo "file '$1' was expected to be executed, but files were '${TEST_MIAE_CALLED_FILES}'"; return 1; fi
+}
+
+function test_miae_assert_first_file_executed() {
+    if ! echo "${TEST_MIAE_CALLED_FILES}" | egrep -q "^[^+]*$1?(\+|$)"; then echo "file '$1' was expected to be executed first, but files were '${TEST_MIAE_CALLED_FILES}'"; return 1; fi
+}
+
+function test_migrate_iterate_and_execute_forward_all() {
+    test_miae_setup_ksql_test_files
+    test_miae_mock_reset
+
+    migrate_iterate_and_execute "${TEST_MIAE_FOLDER}" "FORWARD" "test_miae_mock_function" > /dev/null
+
+    test_miae_assert_num_files_executed 3
+    test_miae_assert_file_executed "0001.ksql"
+    test_miae_assert_file_executed "0002.ksql"
+    test_miae_assert_file_executed "0003.ksql"
+    test_miae_assert_first_file_executed "0001.ksql"
+
+}
+
+function test_migrate_iterate_and_execute_forward_one() {
+    test_miae_setup_ksql_test_files
+    test_miae_mock_reset
+
+    migrate_iterate_and_execute "${TEST_MIAE_FOLDER}" "FORWARD" "test_miae_mock_function" 1 > /dev/null
+
+    test_miae_assert_num_files_executed 1
+    test_miae_assert_file_executed "0001.ksql"
+    test_miae_assert_first_file_executed "0001.ksql"
+
+}
+
+function test_migrate_iterate_and_execute_backward_all() {
+    test_miae_setup_ksql_test_files
+    test_miae_mock_reset
+
+    migrate_iterate_and_execute "${TEST_MIAE_FOLDER}" "BACKWARD" "test_miae_mock_function" > /dev/null
+
+    test_miae_assert_num_files_executed 3
+    test_miae_assert_file_executed "0001.ksql"
+    test_miae_assert_file_executed "0002.ksql"
+    test_miae_assert_file_executed "0003.ksql"
+    test_miae_assert_first_file_executed "0003.ksql"
+
+}
+
+function test_migrate_iterate_and_execute_backward_one() {
+    test_miae_setup_ksql_test_files
+    test_miae_mock_reset
+
+    migrate_iterate_and_execute "${TEST_MIAE_FOLDER}" "BACKWARD" "test_miae_mock_function" 1 > /dev/null
+
+    test_miae_assert_num_files_executed 1
+    test_miae_assert_file_executed "0003.ksql"
+    test_miae_assert_first_file_executed "0003.ksql"
+
+}
+
 #### MOCK FUNCTIONS ###########################################################
 
 #### general mock vars
@@ -123,13 +216,13 @@ MOCK_RETURN_STDOUT="NOOP" # when NOOP then nothing will be send to stdout
 MOCK_RETURN_STDERR="NOOP" # when NOOP then nothing will be send to stderr
 MOCK_RETURN_CODE=0
 
-function mock_reset() {
+function ksqldb_mock_reset() {
     MOCK_RETURN_STDOUT="NOOP"
     MOCK_RETURN_STDERR="NOOP"
     MOCK_RETURN_CODE="0"
 }
 
-function mock_function() {
+function ksqldb_mock_function() {
     if [ ! "${MOCK_RETURN_STDOUT}" == "NOOP" ]; then
         echo "${MOCK_RETURN_STDOUT}"
     fi
@@ -146,7 +239,7 @@ function mock_function() {
 #####
 # mock function.
 function ksqldb_execute() {
-    mock_function
+    ksqldb_mock_function
 
     return $?
 }
@@ -194,7 +287,11 @@ for TEST in \
     test_migrate_get_schema__returns_correct_schema \
     test_migrate_get_name__returns_correct_name \
     test_migrate_get_migration_id__returns_correct_migration_id \
-    test_migrate_calculate_file_hash__calculates_the_correct_hash
+    test_migrate_calculate_file_hash__calculates_the_correct_hash \
+    test_migrate_iterate_and_execute_forward_all \
+    test_migrate_iterate_and_execute_forward_one \
+    test_migrate_iterate_and_execute_backward_all \
+    test_migrate_iterate_and_execute_backward_one
 do
     if ! test_function "$TEST"; then 
         (( RETVAL += 1 ))
