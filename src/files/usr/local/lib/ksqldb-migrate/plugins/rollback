@@ -32,7 +32,10 @@ function rollback(){
 
     local KSQL_DIR="$1"
     local ROLLBACK_NUM="$2"
-
+    if [ -z "${ROLLBACK_NUM}" ]; then
+        ROLLBACK_NUM=1
+    fi
+    
     # validate that all files are valid migration files
     local KSQL_DIR=$1
 	if ! migrate_verify_ksql_yaml_folder $KSQL_DIR; then
