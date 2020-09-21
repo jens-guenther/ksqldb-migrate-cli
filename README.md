@@ -108,4 +108,14 @@ Of course, once a migration was rolled back, you can change the migration conten
 
 TODO, there's a alot ;)
 
+### Rollback fails for streams, tables created by CREATE ... AS SELECT ...
+Common case as the underlying query hasn't been terminated yet. There's a [ticket](https://github.com/confluentinc/ksql/issues/2177 "DROP [STREAM|TABLE] should support termination of query started during creation." ) in ksql solving this in ksql.
+
+**Workaround**: Inspect the error to find the blocking query and TERMINATE that one manually. Then, re-run the rollback.
+
+### Migration files with proper YAML comments get flagged as invalid YAML
+Some issue in 'yq', haven't found out the reason yet (Linux Mint). If you verify the file manually with 'yq v FILE' you'll get the same error. 
+
+**Workaround**: Don't use comments.
+
 
