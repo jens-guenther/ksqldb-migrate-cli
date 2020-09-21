@@ -113,6 +113,13 @@ Common case as the underlying query hasn't been terminated yet. There's a [ticke
 
 **Workaround**: Inspect the error to find the blocking query and TERMINATE that one manually. Then, re-run the rollback.
 
+### Update / Rollback containing multiple statements get applied partially
+Although it is currently already possible to list multiple statements the migration history is not yet capable to register those "migration step" individually. If you apply those multi-step migrations and one of the later steps fails then the migration history is left in an inconsistent state with some step already applied, others not. Fixing and applying those migrations will make ksqldb complain that some elements are already (update) | not anymore (rollback) exist so that you can't move forward/backward anymore.
+
+We are planning to introduce the concept of multi-step migrations, so that those steps get registered properly.
+
+**Workaround**: Fix the broken migration by rolling back the executed steps manually.
+
 ### Migration files with proper YAML comments get flagged as invalid YAML
 Some issue in 'yq', haven't found out the reason yet (Linux Mint). If you verify the file manually with 'yq v FILE' you'll get the same error. 
 
