@@ -35,7 +35,7 @@ function update(){
 		update_usage
 		return 0
 	fi
-
+    
     # validate that all files are valid migration files
     local KSQL_DIR=$1
 	if ! migrate_verify_ksql_yaml_folder $KSQL_DIR; then
