@@ -39,9 +39,10 @@ EOM
 #
 # parameters:
 # $1 - the folder containing ksql YAML files
+# $2 - the number of migrations to apply
 function migrate_apply_ksql_yaml_folder() {
 
-    migrate_iterate_and_execute "$1" "FORWARD" "migrate_apply_ksql_yaml_file"
+    migrate_iterate_and_execute "$1" "FORWARD" "migrate_apply_ksql_yaml_file" "$2"
     return $RETVAL;
 }
 
@@ -84,15 +85,15 @@ function migrate_apply_ksql_yaml_file() {
 
         >&2 echo "$FILE has been already applied before."
 
-        # migration is fine.
-        return 0
+        # migration is fine, nothing to do.
+        return 255
     fi
 
     # conditionally apply and register
     local MIGRATION_STATEMENT=$( yaml_read "$FILE" "ksql" )
     local MIGRATION_STREAMS_PROPS=$( yq r "$FILE" "streamsProperties" -j )
     
-    if ! ksqldb_execute "${MIGRATION_STATEMENT}" "${MIGRATION_STREAMS_PROPS}"; then
+    if ! ksqldb_execute "${MIGRATION_STATEMENT}" "${MIGRATION_STREAMS_PROPS}" > /dev/null ; then
         >&2 echo "Failed to apply '$FILE'. Aborting."
         return 1
     fi
@@ -144,7 +145,7 @@ function migrate_rollback_ksql_yaml_file() {
     # check if it was applied
     if [ -z "${KSQLDB_HASH}" -o "${KSQLDB_HASH}" == "ROLLBACK" ]; then
         # migration was not applied, nothing to do
-        return -1
+        return 255
     fi 
 
     # migration was applied, check hash equality
@@ -162,7 +163,7 @@ function migrate_rollback_ksql_yaml_file() {
         exit 0
     fi
 
-    if ! ksqldb_execute "${MIGRATION_STATEMENT}" "${MIGRATION_STREAMS_PROPS}"  > /dev/null ; then
+    if ! ksqldb_execute "${MIGRATION_STATEMENT}" "${MIGRATION_STREAMS_PROPS}" > /dev/null ; then
         >&2 echo "Failed to apply '$FILE'. Aborting."
         return 1
     fi

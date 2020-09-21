@@ -21,11 +21,15 @@ DESCRIPTION:
             ...
 
 USAGE:
-	update KSQL_DIR
+	update KSQL_DIR [NUM]
 
 PARAMETERS:
   KSQL_DIR
 	Folder containing the migration files.
+
+  NUM
+    optional number of migrations to apply.
+    Default: all
   
 EOF
 }
@@ -36,15 +40,17 @@ function update(){
 		return 0
 	fi
     
+    local KSQL_DIR="$1"
+    local UPDATE_NUM="$2"
+
     # validate that all files are valid migration files
-    local KSQL_DIR=$1
-	if ! migrate_verify_ksql_yaml_folder $KSQL_DIR; then
+	if ! migrate_verify_ksql_yaml_folder "${KSQL_DIR}"; then
         return 1
     fi
 
     # make sure the server is reachable
     if ! ksqldb_isAvailable; then
-        >&2 echo "Could not fetch ksqlDB server data. Is the server at '$KSQLDB_URL' running? Aborting."
+        >&2 echo "Could not fetch ksqlDB server data. Is the server at '${KSQL_DIR}' running? Aborting."
 		return 1
 	fi
     
@@ -54,7 +60,7 @@ function update(){
         return 1
     fi
 
-    if ! migrate_apply_ksql_yaml_folder $KSQL_DIR; then
+    if ! migrate_apply_ksql_yaml_folder "${KSQL_DIR}" "${UPDATE_NUM}"; then
         return 1
     fi
     
