@@ -130,9 +130,15 @@ function test_miae_setup_ksql_test_files() {
 }
 
 TEST_MIAE_CALLED_FILES=
+TEST_MIAE_IGNORE=
 
 function test_miae_mock_reset() {
     TEST_MIAE_CALLED_FILES=
+    TEST_MIAE_IGNORE=
+}
+
+function test_miae_mock_set_ignore() {
+    (( TEST_MIAE_IGNORE = $1 ))
 }
 
 function test_miae_mock_function() {
@@ -141,6 +147,18 @@ function test_miae_mock_function() {
     else
         TEST_MIAE_CALLED_FILES="${TEST_MIAE_CALLED_FILES}+$1"
     fi
+
+    if [ ! -z "${TEST_MIAE_IGNORE}" ]; then
+        (( TEST_MIAE_IGNORE -= 1 ))
+        
+        if [ $TEST_MIAE_IGNORE -eq 0 ]; then
+            TEST_MIAE_IGNORE=
+        fi
+
+        return 255
+    fi
+
+    return 0
 }
 
 function test_miae_assert_num_files_executed() {
@@ -183,6 +201,20 @@ function test_migrate_iterate_and_execute_forward_one() {
 
 }
 
+function test_migrate_iterate_and_execute_forward_one_with_one_ignore() {
+    test_miae_setup_ksql_test_files
+    test_miae_mock_reset
+    test_miae_mock_set_ignore 1
+
+    migrate_iterate_and_execute "${TEST_MIAE_FOLDER}" "FORWARD" "test_miae_mock_function" 1 > /dev/null
+
+    test_miae_assert_num_files_executed 2
+    test_miae_assert_file_executed "0001.ksql"
+    test_miae_assert_file_executed "0002.ksql"
+    test_miae_assert_first_file_executed "0001.ksql"
+
+}
+
 function test_migrate_iterate_and_execute_backward_all() {
     test_miae_setup_ksql_test_files
     test_miae_mock_reset
@@ -204,6 +236,20 @@ function test_migrate_iterate_and_execute_backward_one() {
     migrate_iterate_and_execute "${TEST_MIAE_FOLDER}" "BACKWARD" "test_miae_mock_function" 1 > /dev/null
 
     test_miae_assert_num_files_executed 1
+    test_miae_assert_file_executed "0003.ksql"
+    test_miae_assert_first_file_executed "0003.ksql"
+
+}
+
+function test_migrate_iterate_and_execute_backward_one_with_one_ignore() {
+    test_miae_setup_ksql_test_files
+    test_miae_mock_reset
+    test_miae_mock_set_ignore 1
+
+    migrate_iterate_and_execute "${TEST_MIAE_FOLDER}" "BACKWARD" "test_miae_mock_function" 1 > /dev/null
+
+    test_miae_assert_num_files_executed 2
+    test_miae_assert_file_executed "0002.ksql"
     test_miae_assert_file_executed "0003.ksql"
     test_miae_assert_first_file_executed "0003.ksql"
 
@@ -290,8 +336,10 @@ for TEST in \
     test_migrate_calculate_file_hash__calculates_the_correct_hash \
     test_migrate_iterate_and_execute_forward_all \
     test_migrate_iterate_and_execute_forward_one \
+    test_migrate_iterate_and_execute_forward_one_with_one_ignore \
     test_migrate_iterate_and_execute_backward_all \
-    test_migrate_iterate_and_execute_backward_one
+    test_migrate_iterate_and_execute_backward_one \
+    test_migrate_iterate_and_execute_backward_one_with_one_ignore
 do
     if ! test_function "$TEST"; then 
         (( RETVAL += 1 ))

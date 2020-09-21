@@ -82,7 +82,7 @@ function migrate_apply_ksql_yaml_file() {
             return 1
         fi
 
-        >&2 echo "$FILE was already applied before."
+        >&2 echo "$FILE has been already applied before."
 
         # migration is fine.
         return 0
@@ -142,7 +142,7 @@ function migrate_rollback_ksql_yaml_file() {
     local KSQLDB_HASH=$( migrate_read_hash "$MIGRATION_ID" )
     
     # check if it was applied
-    if [ -z "$KSQLDB_HASH" ]; then
+    if [ -z "${KSQLDB_HASH}" -o "${KSQLDB_HASH}" == "ROLLBACK" ]; then
         # migration was not applied, nothing to do
         return -1
     fi 
@@ -157,6 +157,11 @@ function migrate_rollback_ksql_yaml_file() {
     local MIGRATION_STATEMENT=$( yq r "$FILE" "rollback.ksql" )
     local MIGRATION_STREAMS_PROPS=$( yq r "$FILE" "rollback.streamsProperties" -j )
     
+    if [ ! -z "$ANSWER" -a ! "$ANSWER" = "y" -a ! "$ANSWER" = "Y" ]; then
+        >&2 echo "Stopped rollback."
+        exit 0
+    fi
+
     if ! ksqldb_execute "${MIGRATION_STATEMENT}" "${MIGRATION_STREAMS_PROPS}"  > /dev/null ; then
         >&2 echo "Failed to apply '$FILE'. Aborting."
         return 1
@@ -373,15 +378,16 @@ function migrate_iterate_and_execute() {
     (( RETVAL = 0 ))
 
     while read FILE; do
+
         # execute function
         $FUNCTION "$FILE"
         local EXEC_CODE=$?
-        # every return code 
+        # every return code
+        # - 255 means nothing to do
         # - greater than 0 means error
         # - equals 0 means successful executed
-        # - less than 0 means nothing to do
 
-        if [ $EXEC_CODE -gt 0 ]; then
+       if [ $EXEC_CODE -gt 0 -a ! $EXEC_CODE -eq 255 ]; then
             (( RETVAL = 1 ))
             break;
         fi
