@@ -108,6 +108,11 @@ Of course, once a migration was rolled back, you can change the migration conten
 
 TODO, there's a alot ;)
 
+### Migration stream partition is fixed to 1, not yet configurable
+You might run into issues when the underlying kafka cluster expects more partitions (have seen this issue once).
+
+**Workaround**: Change the partition number at [funcs.migrate.sh](https://github.com/jens-guenther/ksqldb-migrate-cli/blob/master/src/files/usr/local/lib/ksqldb-migrate/funcs.migrate.sh) line 12
+
 ### Rollback fails for streams, tables created by CREATE ... AS SELECT ...
 Common case as the underlying query hasn't been terminated yet. There's a [ticket](https://github.com/confluentinc/ksql/issues/2177 "DROP [STREAM|TABLE] should support termination of query started during creation." ) in ksql solving this in ksql.
 
