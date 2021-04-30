@@ -1,6 +1,11 @@
 # ksqldb-migrate-cli
 Commandline tool for running ksqlDB schema migrations
 
+> **THIS PROJECT WON'T BE DEVELOPED FURTHER**
+>
+> Confluent picked up the idea and provided a more complete version of it. Please check it out here: 
+> https://docs.ksqldb.io/en/latest/operate-and-deploy/migrations-tool/
+
 ## Motivation
 
 Once you start playing around with ksqlDB a bit more seriously you recognize that keeping track of your changes to the database are becoming somewhat cluttered. Moreover, the task of keeping different development environments in sync becomes harder over time. 
